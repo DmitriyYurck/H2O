@@ -11,12 +11,12 @@ import urllib.request
 import os
 import json
 
-from utils_real_drop.modify_llama import H2OLlamaForCausalLM_streaming
+from utils_real_drop.modify_magistral import H2OMagistralForConditionalGeneration_streaming
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_name_or_path", type=str, default="models/llama/llama-7b"
+        "--model_name_or_path", type=str, default="models/magistral/magistral-small"
     )
     parser.add_argument("--revision", type=str, default="main")
     parser.add_argument("--tokenizer_name_or_path", type=str, default=None)
@@ -46,17 +46,14 @@ def parse_args():
 
     parser.add_argument("--num_eval_tokens", type=int, default=None)
 
-    ## H2O KV-Cache
     parser.add_argument("--heavy_hitter_size", type=int, default=1)
     parser.add_argument("--enable_h2o_kv_cache", action="store_true")
-
     args = parser.parse_args()
     return args
 
 
 def load(model_name_or_path, heavy_hitter=False, args=None):
     print(f"Loading model from {model_name_or_path} ...")
-    # however, tensor parallel for running falcon will occur bugs
     tokenizer = AutoTokenizer.from_pretrained(
         model_name_or_path,
         trust_remote_code=True,
@@ -68,7 +65,7 @@ def load(model_name_or_path, heavy_hitter=False, args=None):
         config.recent_size = args.recent_size
 
     if heavy_hitter:
-        model = H2OLlamaForCausalLM_streaming.from_pretrained(
+        model = H2OMagistralForConditionalGeneration_streaming.from_pretrained(
         model_name_or_path,
         device_map="auto",
         config=config,
@@ -94,25 +91,12 @@ def load(model_name_or_path, heavy_hitter=False, args=None):
 
 
 def download_url(url: str, folder="folder"):
-    """
-    Downloads the content of an url to a folder. Modified from \
-    https://github.com/pyg-team/pytorch_geometric/tree/master/torch_geometric
-
-    Args:
-        url (string): The url of target file.
-        folder (string): The target folder.
-
-    Returns:
-        string: File path of downloaded files.
-    """
-
     file = url.rpartition("/")[2]
     file = file if file[0] == "?" else file.split("?")[0]
     path = osp.join(folder, file)
     if osp.exists(path):
         print(f"File {file} exists, use existing file.")
         return path
-
     print(f"Downloading {url}")
     os.makedirs(folder, exist_ok=True)
     ctx = ssl._create_unverified_context()
